@@ -19,7 +19,7 @@ namespace engine
 	public:
 		void createShaderProgram(const std::string& vertexShaderF, const std::string& fragmentShaderF);
 		void destroyShaderProgram();
-	private:
+	protected:
 		std::string loadShader(const std::string& file);
 		void checkCompilationError(GLuint shader);
 		void checkLinkageError();

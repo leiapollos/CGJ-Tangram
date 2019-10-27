@@ -136,12 +136,14 @@
     </Link>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="src\Camera.cpp" />
     <ClCompile Include="src\Matrix.cpp" />
     <ClCompile Include="src\Shader.cpp" />
     <ClCompile Include="src\StartingOpenGL.cpp" />
     <ClCompile Include="src\Vector.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="src\Camera.h" />
     <ClInclude Include="src\Constants.h" />
     <ClInclude Include="src\Matrix.h" />
     <ClInclude Include="src\Shader.h" />
