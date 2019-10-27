@@ -18,6 +18,7 @@ x86/
 bld/
 [Oo]bj/
 [Ll]og/
+[Ii]ntermidiate
 
 # Visual Studio 2015 cache/options directory
 .vs/
@@ -240,3 +241,5 @@ paket-files/
 # JetBrains Rider
 .idea/
 *.sln.iml
+*.log
+*.lastbuildstate
