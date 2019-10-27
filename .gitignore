@@ -243,3 +243,8 @@ paket-files/
 *.sln.iml
 *.log
 *.lastbuildstate
+*.log
+*.lastbuildstate
+*.tlog
+*.obj
+*.idb
