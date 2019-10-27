@@ -39,9 +39,6 @@
 using namespace engine;
 
 GLuint VaoId, VboId[2];
-GLuint VertexShaderId, FragmentShaderId, ProgramId;
-GLint UboId, UniformId;
-const GLuint UBO_BP = 0;
 Shader shader;
 
 ////////////////////////////////////////////////// ERROR CALLBACK (OpenGL 4.3+)
@@ -94,6 +91,7 @@ static void error(GLenum source, GLenum type, GLuint id, GLenum severity, GLsize
 	std::cerr << "  type:       " << errorType(type) << std::endl;
 	std::cerr << "  severity:   " << errorSeverity(severity) << std::endl;
 	std::cerr << "  debug call: " << std::endl << message << std::endl << std::endl;
+	std::cin.ignore(); //TODO uncomment this to not get error flooding
 }
 
 void setupErrorCallback()
@@ -107,74 +105,7 @@ void setupErrorCallback()
 
 /////////////////////////////////////////////////////////////////////// SHADERs
 
-const GLchar* VertexShader =
-{
-	"#version 330 core\n"
 
-	"in vec4 in_Position;\n"
-	"in vec4 in_Color;\n"
-	"out vec4 ex_Color;\n"
-
-	"uniform mat4 ModelMatrix;\n"
-
-	"uniform SharedMatrices\n"
-	"{\n"
-	"	mat4 ViewMatrix;\n"
-	"	mat4 ProjectionMatrix;\n"
-	"};\n"
-
-	"void main(void)\n"
-	"{\n"
-	"	gl_Position = ProjectionMatrix * ViewMatrix * ModelMatrix * in_Position;\n"
-	"	ex_Color = in_Color;\n"
-	"}\n"
-};
-
-const GLchar* FragmentShader =
-{
-	"#version 330 core\n"
-
-	"in vec4 ex_Color;\n"
-	"out vec4 out_Color;\n"
-
-	"void main(void)\n"
-	"{\n"
-	"	out_Color = ex_Color;\n"
-	"}\n"
-};
-
-void createShaderProgram()
-{
-	VertexShaderId = glCreateShader(GL_VERTEX_SHADER);
-	glShaderSource(VertexShaderId, 1, &VertexShader, 0);
-	glCompileShader(VertexShaderId);
-
-	FragmentShaderId = glCreateShader(GL_FRAGMENT_SHADER);
-	glShaderSource(FragmentShaderId, 1, &FragmentShader, 0);
-	glCompileShader(FragmentShaderId);
-
-	ProgramId = glCreateProgram();
-	glAttachShader(ProgramId, VertexShaderId);
-	glAttachShader(ProgramId, FragmentShaderId);
-
-	glBindAttribLocation(ProgramId, VERTICES, "in_Position");
-	glBindAttribLocation(ProgramId, COLORS, "in_Color");
-	glLinkProgram(ProgramId);
-	UniformId = glGetUniformLocation(ProgramId, "ModelMatrix");
-	UboId = glGetUniformBlockIndex(ProgramId, "SharedMatrices");
-	glUniformBlockBinding(ProgramId, UboId, shader.UBO_BP);
-
-	glDetachShader(ProgramId, VertexShaderId);
-	glDeleteShader(VertexShaderId);
-	glDetachShader(ProgramId, FragmentShaderId);
-	glDeleteShader(FragmentShaderId);
-}
-
-void destroyShaderProgram()
-{
-	glUseProgram(0);
-	glDeleteProgram(ProgramId);
-}
 
 /////////////////////////////////////////////////////////////////// VAOs & VBOs
 
@@ -327,9 +258,9 @@ void drawScene()
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
 	glBindVertexArray(VaoId);
-	glUseProgram(ProgramId);
+	glUseProgram(shader.ProgramId);
 
-	glUniformMatrix4fv(UniformId, 1, GL_FALSE, ModelMatrix);
+	glUniformMatrix4fv(shader.UniformId, 1, GL_FALSE, ModelMatrix);
 	glDrawArrays(GL_TRIANGLES, 0, 36);
 
 	glUseProgram(0);
@@ -340,7 +271,7 @@ void drawScene()
 
 void window_close_callback(GLFWwindow* win)
 {
-	destroyShaderProgram();
+	shader.destroyShaderProgram();
 	destroyBufferObjects();
 }
 
@@ -449,7 +380,7 @@ GLFWwindow* setup(int major, int minor,
 	setupGLEW();
 	setupOpenGL(winx, winy);
 	setupErrorCallback();
-	createShaderProgram();
+	shader.createShaderProgram("shaders/vertex.shader", "shaders/fragment.shader");
 	createBufferObjects();
 	return win;
 }
@@ -488,7 +419,6 @@ int main(int argc, char* argv[])
 	int is_vsync = 1;
 	GLFWwindow* win = setup(gl_major, gl_minor,
 		640, 480, "Hello Modern 3D World", is_fullscreen, is_vsync);
-	shader = new Shader();
 	run(win);
 	exit(EXIT_SUCCESS);
 }
