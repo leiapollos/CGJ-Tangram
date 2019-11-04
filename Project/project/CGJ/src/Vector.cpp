@@ -248,6 +248,10 @@ namespace engine {
 		{
 			return vec3(v.x*k, v.y*k, v.z*k);
 		}
+		const vec3 operator/(const float k, const vec3& v)
+		{
+			return vec3(k/v.x,k/v.y,k/v.z);
+		}
 		const float dot(const vec3& v0, const vec3& v1)
 		{
 			return v0.x*v1.x+ v0.y*v1.y + v0.z*v1.z;

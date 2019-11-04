@@ -114,11 +114,11 @@ namespace engine
 		static const mat4 createScaleMat4(const vec3& v);
 		static const mat4 createRotationMat4(const float angle, const vec3& axis);
 		static const mat4 createTranslationMat4(const vec3& v);
-		static const float* createColumnMajorMatrix(const mat4& m);
+		void createColumnMajorMatrix(const mat4& m, float* mat);
 		//static const mat4 createMat4FromQtrn(const qtrn& q);
-		//static const mat4 createViewMatrix(const vec3& eye, const vec3& center, const vec3& up);
-		//static const mat4 createOrthographicProjectionMatrix(const float left, const float right, const float bottom, const float top);
-		//static const mat4 createPerspectiveProjectionMatrix(const float fovy, const float ratio, const float near, const float far);
+		static const mat4 createViewMatrix(const vec3& eye, const vec3& center, const vec3& up);
+		static const mat4 createOrthographicProjectionMatrix(const float left, const float right, const float bottom, const float top, const float near, const float far);
+		static const mat4 createPerspectiveProjectionMatrix(const float fovy, const float aspect, const float nearZ, const float farZ);
 	};
 
 	struct MatrixStack {

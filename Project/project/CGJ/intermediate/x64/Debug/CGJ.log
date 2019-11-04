@@ -1,2 +1,6 @@
-﻿  StartingOpenGL.cpp
+﻿  Camera.cpp
+  Matrix.cpp
+  StartingOpenGL.cpp
+  Vector.cpp
+  Generating Code...
   CGJ.vcxproj -> C:\Users\andre\Desktop\CGJ\Project\project\\..\bin\x64\CGJ.exe

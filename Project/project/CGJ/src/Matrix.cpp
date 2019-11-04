@@ -596,17 +596,53 @@ namespace engine {
 					0.0f, 0.0f, 0.0f, 1.0f);
 	}
 
-	const float* MatrixFactory::createColumnMajorMatrix(const mat4& m)
+	void MatrixFactory::createColumnMajorMatrix(const mat4& m, float* mat)
 	{
 		mat4 t = transpose(m);
-		
-		int k = 0;
-		for(int i = 0; i < 4; i++)
-			for (int j = 0; j < 4; j++) {
-				t.dataGL[k++] = t.data[i][j];
-			}
 
-		return t.dataGL;//TODO warning C4172: returning address of local variable or temporary: res
+		int k = 0;
+		for (int i = 0; i < 4; i++)
+			for (int j = 0; j < 4; j++) {
+				mat[k++] = t.data[i][j];
+			}
+	}
+
+	const mat4 MatrixFactory::createViewMatrix(const vec3& eye, const vec3& center, const vec3& up)
+	{
+		vec3 view = center - eye;
+		vec3 v = normalize(view);
+		vec3 side = cross(v, up);
+		vec3 s = normalize(side);
+		vec3 u = cross(s, v);
+		mat4 R = mat4(s.x, s.y, s.z, 0.0f,
+					  u.x, u.y, u.z, 0.0f,
+					  -v.x, -v.y, -v.z, 0.0f,
+					  0.0f, 0.0f, 0.0f, 1.0f);
+		mat4 T = mat4(1.0f,0.0f,0.0f,-eye.x,
+					  0.0f,1.0f,0.0f,-eye.y,
+					  0.0f,0.0f,1.0f,-eye.z,
+					  0.0f,0.0f,0.0f,1.0f);
+		mat4 M = R * T;
+		return M;
+	}
+
+	const mat4 MatrixFactory::createOrthographicProjectionMatrix(const float left, const float right, const float bottom, const float top, const float near, const float far)
+	{
+		return mat4((float)(2/(right-left)),  0,							0,								(float)((left+right)/(left-right)),
+					0,						  (float)(2 / (top - bottom)),  0,								(float)((bottom + top) / (bottom - top)),
+					0,						  0,							(float)(2 / (near - far)),      (float)((near + far) / (near - far)),
+					0,						  0,							0,								1);
+	}
+
+	const mat4 MatrixFactory::createPerspectiveProjectionMatrix(const float fovy, const float aspect, const float nearZ, const float farZ)
+	{
+		float teta = fovy / 2.0f;
+		float d = 1.0f / tan(teta * PI / 180.0f);
+		
+		return mat4(d / aspect, 0, 0,                         0,
+					0,			d, 0,                         0,
+					0,			0, (nearZ+farZ)/(nearZ-farZ), 2*farZ*nearZ/(nearZ-farZ),
+					0,			0, -1.0f,					  0);
 	}
 	
 	//////////////////////////////////////////////////////////////////////////////////////////////

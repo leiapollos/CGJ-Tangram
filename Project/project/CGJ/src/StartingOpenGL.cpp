@@ -7,20 +7,6 @@
 //   - The new face of each TAN should share the same hue as the original top
 //     face color but have a different level of saturation and brightness.
 //
-// - Add the following functionality (consider a Camera class):
-//   - Create a View Matrix from (eye, center, up) parameters.
-//   - Create an Orthographic Projection Matrix from (left-right, bottom-top, 
-//     near-far) parameters.
-//   - Create a Perspective Projection Matrix from (fovy, aspect, nearZ, farZ) 
-//     parameters.
-//
-// - Add the following dynamics to the application:
-//   - Create a free 3D camera controlled by the mouse (orientation) and 
-//     keyboard (movement) allowing to visualize the scene through all its 
-//     angles.
-//   - Change perspective from orthographic to perspective and back as
-//     a response to pressing the key 'p'.
-//
 // (c) 2013-19 by Carlos Martinho
 //
 ///////////////////////////////////////////////////////////////////////////////
@@ -32,6 +18,7 @@
 #include "Matrix.h"
 #include "Vector.h"
 #include "Shader.h"
+#include "Camera.h"
 
 #define VERTICES 0
 #define COLORS 1
@@ -40,6 +27,9 @@ using namespace engine;
 
 GLuint VaoId, VboId[2];
 Shader shader;
+Camera camera;
+bool firstMouse = true;
+float lastX, lastY;
 
 ////////////////////////////////////////////////// ERROR CALLBACK (OpenGL 4.3+)
 
@@ -91,7 +81,7 @@ static void error(GLenum source, GLenum type, GLuint id, GLenum severity, GLsize
 	std::cerr << "  type:       " << errorType(type) << std::endl;
 	std::cerr << "  severity:   " << errorSeverity(severity) << std::endl;
 	std::cerr << "  debug call: " << std::endl << message << std::endl << std::endl;
-	std::cin.ignore(); //TODO uncomment this to not get error flooding
+	//std::cin.ignore(); //TODO uncomment this to not get error flooding
 }
 
 void setupErrorCallback()
@@ -217,43 +207,22 @@ const Matrix ModelMatrix = {
 }; // Column Major
 
 // Eye(5,5,5) Center(0,0,0) Up(0,1,0)
-const Matrix ViewMatrix1 = {
-	0.70f, -0.41f,  0.58f,  0.00f,
-	0.00f,  0.82f,  0.58f,  0.00f,
-   -0.70f, -0.41f,  0.58f,  0.00f,
-	0.00f,  0.00f, -8.70f,  1.00f
-}; // Column Major
 
 // Eye(-5,-5,-5) Center(0,0,0) Up(0,1,0)
-const Matrix ViewMatrix2 = {
-   -0.70f, -0.41f, -0.58f,  0.00f,
-	0.00f,  0.82f, -0.58f,  0.00f,
-	0.70f, -0.41f, -0.58f,  0.00f,
-	0.00f,  0.00f, -8.70f,  1.00f
-}; // Column Major
 
 // Orthographic LeftRight(-2,2) BottomTop(-2,2) NearFar(1,10)
-const Matrix ProjectionMatrix1 = {
-	0.50f,  0.00f,  0.00f,  0.00f,
-	0.00f,  0.50f,  0.00f,  0.00f,
-	0.00f,  0.00f, -0.22f,  0.00f,
-	0.00f,  0.00f, -1.22f,  1.00f
-}; // Column Major
 
 // Perspective Fovy(30) Aspect(640/480) NearZ(1) FarZ(10)
-const Matrix ProjectionMatrix2 = {
-	2.79f,  0.00f,  0.00f,  0.00f,
-	0.00f,  3.73f,  0.00f,  0.00f,
-	0.00f,  0.00f, -1.22f, -1.00f,
-	0.00f,  0.00f, -2.22f,  0.00f
-}; // Column Major
 
 void drawScene()
 {
+	camera.createAndSetViewMatrix(camera.eye, camera.eye + camera.direction, camera.up);
+	mat4 viewMatrix = camera.getViewMatrix();
+	mat4 projectionMatrix = camera.getProjectionMatrix();
 	glBindBuffer(GL_UNIFORM_BUFFER, VboId[1]);
 	{
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Matrix), ViewMatrix1);
-		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(Matrix), sizeof(Matrix), ProjectionMatrix1);
+		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Matrix), viewMatrix.getData());
+		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(Matrix), sizeof(Matrix), projectionMatrix.getData());
 	}
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
 
@@ -280,7 +249,64 @@ void window_size_callback(GLFWwindow* win, int winx, int winy)
 	glViewport(0, 0, winx, winy);
 }
 
+void key_callback(GLFWwindow* win, int key, int scancode, int action, int mods)
+{
+	//std::cout << "key: " << key << " " << scancode << " " << action << " " << mods << std::endl;
+	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
+	{
+		glfwSetWindowShouldClose(win, GLFW_TRUE);
+		window_close_callback(win);
+	}
+	if (key == GLFW_KEY_P && action == 1) {
+		camera.switchProjectionMatrix();
+	}
+	if (glfwGetKey(win, GLFW_KEY_W) == GLFW_PRESS) {
+		camera.eye += camera.direction * camera.speed;
+	}
+	if (glfwGetKey(win, GLFW_KEY_S) == GLFW_PRESS) {
+		camera.eye -= camera.direction * camera.speed;
+	}
+	if (key == GLFW_KEY_A && (action == 2 || action == 1)) {
+		camera.eye -= normalize(cross(camera.direction, camera.up)) * camera.speed;
+	}
+	if (key == GLFW_KEY_D && (action == 2 || action == 1)) {
+		camera.eye += normalize(cross(camera.direction,camera.up)) * camera.speed;
+	}
+
+	//RESET CAMERA
+	if (key == GLFW_KEY_R) {
+		camera = Camera();
+	}
+}
+
+void mouse_callback(GLFWwindow* win, double xpos, double ypos)
+{
+	//std::cout << "mouse: " << xpos << " " << ypos << std::endl;
+	camera.mouseCallBack((float)xpos,(float)ypos);
+}
+
+void mouse_button_callback(GLFWwindow* win, int button, int action, int mods)
+{
+	std::cout << "button: " << button << " " << action << " " << mods << std::endl;
+}
+
+void scroll_callback(GLFWwindow* win, double xoffset, double yoffset)
+{
+	std::cout << "scroll: " << xoffset << " " << yoffset << std::endl;
+}
+
+void joystick_callback(int jid, int event)
+{
+	std::cout << "joystick: " << jid << " " << event << std::endl;
+}
+
+
 ///////////////////////////////////////////////////////////////////////// SETUP
+
+void setupCamera()
+{
+	camera = Camera();
+}
 
 void glfw_error_callback(int error, const char* description)
 {
@@ -304,8 +330,12 @@ GLFWwindow* setupWindow(int winx, int winy, const char* title,
 
 void setupCallbacks(GLFWwindow* win)
 {
+	glfwSetKeyCallback(win, key_callback);
 	glfwSetWindowCloseCallback(win, window_close_callback);
 	glfwSetWindowSizeCallback(win, window_size_callback);
+	glfwSetCursorPosCallback(win, mouse_callback);
+	glfwSetMouseButtonCallback(win, mouse_button_callback);
+	glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
 }
 
 GLFWwindow* setupGLFW(int gl_major, int gl_minor,
@@ -382,6 +412,7 @@ GLFWwindow* setup(int major, int minor,
 	setupErrorCallback();
 	shader.createShaderProgram("shaders/vertex.shader", "shaders/fragment.shader");
 	createBufferObjects();
+	setupCamera();
 	return win;
 }
 

@@ -60,6 +60,7 @@ namespace engine
 		friend const vec3 operator - (const vec3& v0, const vec3& v1);
 		friend const vec3 operator * (const vec3& v0, const float k);
 		friend const vec3 operator * (const float k, const vec3& v1);
+		friend const vec3 operator / (const float k, const vec3& v);
 		friend const float dot(const vec3& v0, const vec3& v1);
 		friend const vec3 cross(const vec3& v0, const vec3& v1);
 		friend const bool operator == (const vec3& v0, const vec3& v1);
