@@ -27,7 +27,8 @@ void engine::Shader::createShaderProgram(const std::string& vertexShaderF, const
 
 	glLinkProgram(ProgramId);
 	checkLinkageError();
-	UniformId = glGetUniformLocation(ProgramId, "ModelMatrix");
+	MUniformId = glGetUniformLocation(ProgramId, "ModelMatrix");
+	CUniformId = glGetUniformLocation(ProgramId, "u_Color");
 	UboId = glGetUniformBlockIndex(ProgramId, "SharedMatrices");
 	glUniformBlockBinding(ProgramId, UboId, UBO_BP);
 

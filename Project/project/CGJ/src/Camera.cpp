@@ -4,9 +4,9 @@ engine::Camera::Camera()
 {
 	//DEFAULT INITIALIZATION
 
-	eye = vec3(5.0f, 5.0f, 5.0f);
+	eye = vec3(-0.42f, 2.02f, 3.82f);
 	up = vec3(0.0f, 1.0f, 0.0f);
-	direction = vec3(-1.0f, -1.0f, -1.0f);
+	direction = vec3(-0.00f, -0.37f, -0.92f);
 	direction = normalize(direction);
 	speed = CAMERA_SPEED;
 
@@ -17,6 +17,8 @@ engine::Camera::Camera()
 	projectionMatrix = perspectiveMatrix;
 
 	getYawPitchFromDirectionVector(direction);
+	yaw = -90.0f;
+	pitch = -20.0f;
 
 	firstMouseMovement = true;
 }
@@ -107,8 +109,23 @@ void engine::Camera::mouseCallBack(float xpos, float ypos)
 
 void engine::Camera::getYawPitchFromDirectionVector(const vec3& direction)
 {
+	/*
 	yaw = atan2(direction.x, direction.z);
 	pitch = atan2(direction.y, direction.length());
+	*/
+	/*
+	yaw = atan(direction.x / (-direction.y));
+	pitch = atan(sqrt(pow(direction.x, 2) + pow(direction.y, 2)) / direction.z);
+	*/
+	
+	pitch = asin(direction.y);
+	yaw = atan2(direction.x, direction.z);
+	
+	/*
+	pitch = asin(direction.y / direction.length());
+	yaw = asin(direction.x / (cos(pitch) * direction.length()));
+	*/
+
 	yaw = yaw * 180.0f / PI;
 	pitch = pitch * 180.0f / PI;
 }

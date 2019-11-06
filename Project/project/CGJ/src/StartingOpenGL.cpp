@@ -25,11 +25,14 @@
 
 using namespace engine;
 
-GLuint VaoId, VboId[2];
+GLuint VaoId, VboId[3];
 Shader shader;
 Camera camera;
 bool firstMouse = true;
 float lastX, lastY;
+
+float blue[4], orange[4], red[4], yellow[4], cyan[4], magenta[4], green[4];
+float nblue[4], norange[4], nred[4], nyellow[4], ncyan[4], nmagenta[4], ngreen[4];
 
 ////////////////////////////////////////////////// ERROR CALLBACK (OpenGL 4.3+)
 
@@ -106,7 +109,47 @@ typedef struct {
 
 typedef GLfloat Matrix[16];
 
-const Vertex Vertices[] = // no indices?
+
+const Vertex Vertices[] =
+{
+	{{ 0.0f, 0.0f, 0.0f, 1.0f }, { blue[0], blue[1], blue[2], blue[3] } }, //0
+	{{ 0.5f, 0.0f, 0.0f, 1.0f }, { blue[0], blue[1], blue[2], blue[3] }}, //1
+	{{ 0.5f, 0.5f, 0.0f, 1.0f },{ blue[0], blue[1], blue[2], blue[3] }}, //2
+	{{ 0.0f, 0.5f, 0.0f, 1.0f }, { blue[0], blue[1], blue[2], blue[3] }}, //3
+
+
+	{{ 0.0f, 0.0f, 0.0f, 1.0f }, { red[0], red[1], red[2], red[3] }}, //4
+	{{ 0.0f, 0.5f, 0.0f, 1.0f }, { red[0], red[1], red[2], red[3] }}, //5
+	{{ 0.5f, 0.25f, 0.0f, 1.0f }, { red[0], red[1], red[2], red[3] }}, //6
+	{{ 0.5f, 0.75f, 0.0f, 1.0f }, { red[0], red[1], red[2], red[3] }}, //7
+
+
+	{{ 0.0f, 0.0f, 0.0f, 1.0f }, { green[0], green[1], green[2], green[3] }}, //8
+	{{ 0.25f, 0.0f, 0.0f, 1.0f }, { green[0], green[1], green[2], green[3] }}, //9
+	{{ 0.25f, 0.25f, 0.0f, 1.0f }, { green[0], green[1], green[2], green[3] }} //10
+};
+
+const GLubyte Indices[] =
+{
+	0,1,2,
+	2,3,0, //6
+
+	6,5,4,
+	5,6,7, //12
+
+	8,9,10,  //15
+	
+	2,1,0,
+	0,3,2, //21
+
+	4,5,7,
+	7,6,4, //27
+
+	10,9,8 //30
+
+};
+
+/*const Vertex Vertices[] = // no indices?
 {
 	{{ 0.0f, 0.0f, 1.0f, 1.0f }, { 0.9f, 0.0f, 0.0f, 1.0f }}, // 0 - FRONT
 	{{ 1.0f, 0.0f, 1.0f, 1.0f }, { 0.9f, 0.0f, 0.0f, 1.0f }}, // 1
@@ -149,14 +192,14 @@ const Vertex Vertices[] = // no indices?
 	{{ 1.0f, 0.0f, 0.0f, 1.0f }, { 0.9f, 0.9f, 0.0f, 1.0f }}, // 5	
 	{{ 1.0f, 0.0f, 1.0f, 1.0f }, { 0.9f, 0.9f, 0.0f, 1.0f }}, // 1
 	{{ 0.0f, 0.0f, 1.0f, 1.0f }, { 0.9f, 0.9f, 0.0f, 1.0f }}  // 0
-};
+};*/
 
 void createBufferObjects()
 {
 	glGenVertexArrays(1, &VaoId);
 	glBindVertexArray(VaoId);
 	{
-		glGenBuffers(2, VboId);
+		glGenBuffers(3, VboId);
 
 		glBindBuffer(GL_ARRAY_BUFFER, VboId[0]);
 		{
@@ -166,10 +209,14 @@ void createBufferObjects()
 			glEnableVertexAttribArray(COLORS);
 			glVertexAttribPointer(COLORS, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)sizeof(Vertices[0].XYZW));
 		}
+		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, VboId[2]);
+		{
+			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
+		}
 	}
 	glBindVertexArray(0);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
-
+	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_UNIFORM_BUFFER, VboId[1]);
 	{
 		glBufferData(GL_UNIFORM_BUFFER, sizeof(Matrix) * 2, 0, GL_STREAM_DRAW);
@@ -183,7 +230,7 @@ void destroyBufferObjects()
 	glBindVertexArray(VaoId);
 	glDisableVertexAttribArray(VERTICES);
 	glDisableVertexAttribArray(COLORS);
-	glDeleteBuffers(2, VboId);
+	glDeleteBuffers(3, VboId);
 	glDeleteVertexArrays(1, &VaoId);
 	glBindBuffer(GL_ARRAY_BUFFER, 0);
 	glBindBuffer(GL_UNIFORM_BUFFER, 0);
@@ -214,8 +261,17 @@ const Matrix ModelMatrix = {
 
 // Perspective Fovy(30) Aspect(640/480) NearZ(1) FarZ(10)
 
+mat4 BlueParallelogram;
+mat4 RedTriangle;
+mat4 MagentaTriangle;
+mat4 CyanTriangle;
+mat4 GreenTriangle;
+mat4 YellowTriangle;
+mat4 OrangeSquare;
+
 void drawScene()
 {
+
 	camera.createAndSetViewMatrix(camera.eye, camera.eye + camera.direction, camera.up);
 	mat4 viewMatrix = camera.getViewMatrix();
 	mat4 projectionMatrix = camera.getProjectionMatrix();
@@ -229,8 +285,64 @@ void drawScene()
 	glBindVertexArray(VaoId);
 	glUseProgram(shader.ProgramId);
 
-	glUniformMatrix4fv(shader.UniformId, 1, GL_FALSE, ModelMatrix);
-	glDrawArrays(GL_TRIANGLES, 0, 36);
+	//FRONT
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, OrangeSquare.getData()); //SQUARE
+	glUniform4fv(shader.CUniformId, 1, orange);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (GLvoid*)0);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, BlueParallelogram.getData()); //PARALLELOGRAM
+	glUniform4fv(shader.CUniformId, 1, blue);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (GLvoid*)6);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, CyanTriangle.getData()); //CYAN
+	glUniform4fv(shader.CUniformId, 1, cyan);
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)12);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, RedTriangle.getData()); //RED
+	glUniform4fv(shader.CUniformId, 1, red);
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)12);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, MagentaTriangle.getData()); //MAGENTA
+	glUniform4fv(shader.CUniformId, 1, magenta);
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)12);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, GreenTriangle.getData()); //GREEN
+	glUniform4fv(shader.CUniformId, 1, green);
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)12);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, YellowTriangle.getData()); //YELLOW
+	glUniform4fv(shader.CUniformId, 1, yellow);
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)12);
+
+	//BACK
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, OrangeSquare.getData()); //SQUARE
+	glUniform4fv(shader.CUniformId, 1, norange);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (GLvoid*)15);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, BlueParallelogram.getData()); //PARALLELOGRAM
+	glUniform4fv(shader.CUniformId, 1, nblue);
+	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (GLvoid*)21);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, CyanTriangle.getData()); //CYAN
+	glUniform4fv(shader.CUniformId, 1, ncyan);
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)27);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, RedTriangle.getData()); //RED
+	glUniform4fv(shader.CUniformId, 1, nred);
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)27);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, MagentaTriangle.getData()); //MAGENTA
+	glUniform4fv(shader.CUniformId, 1, nmagenta);
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)27);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, GreenTriangle.getData()); //GREEN
+	glUniform4fv(shader.CUniformId, 1, ngreen);
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)27);
+
+	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, YellowTriangle.getData()); //YELLOW
+	glUniform4fv(shader.CUniformId, 1, nyellow);
+	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)27);
+
 
 	glUseProgram(0);
 	glBindVertexArray(0);
@@ -277,6 +389,10 @@ void key_callback(GLFWwindow* win, int key, int scancode, int action, int mods)
 	if (key == GLFW_KEY_R) {
 		camera = Camera();
 	}
+
+	if (key == GLFW_KEY_F) {
+		std::cout << camera.eye << camera.direction << camera.yaw << " " <<camera.pitch << std::endl;
+	}
 }
 
 void mouse_callback(GLFWwindow* win, double xpos, double ypos)
@@ -302,6 +418,64 @@ void joystick_callback(int jid, int event)
 
 
 ///////////////////////////////////////////////////////////////////////// SETUP
+
+void setUpDraw() {
+
+	YellowTriangle = MatrixFactory::createTranslationMat4(vec3(-0.5f, 0.25f, 0.0f));
+	YellowTriangle = YellowTriangle * MatrixFactory::createScaleMat4(vec3(0.5f, 0.5f, 1.0f));
+	YellowTriangle = YellowTriangle * MatrixFactory::createRotationMat4(90.0f, vec3(0.0f, 0.0f, 1.0f));
+
+	GreenTriangle = MatrixFactory::createTranslationMat4(vec3(-0.75f, 0.5f, 0.0f));
+	GreenTriangle = GreenTriangle * MatrixFactory::createScaleMat4(vec3(0.5f, 0.5f, 1.0f));
+
+	CyanTriangle = MatrixFactory::createTranslationMat4(vec3(-0.625f, 0.376f, 0.0f));
+	CyanTriangle = CyanTriangle * MatrixFactory::createRotationMat4(45.0f, vec3(0.0f, 0.0f, 1.0f));
+	CyanTriangle = CyanTriangle * MatrixFactory::createScaleMat4(vec3(0.71f, 0.71f, 1.0f));
+
+	RedTriangle = MatrixFactory::createTranslationMat4(vec3(-0.625f, 0.376f, 0.0f));
+
+	MagentaTriangle = MatrixFactory::createTranslationMat4(vec3(-0.125f, 0.626f, 0.0f));
+	MagentaTriangle = MagentaTriangle * MatrixFactory::createRotationMat4(180.0f, vec3(0.0f, 0.0f, 1.0f));
+
+	OrangeSquare = MatrixFactory::createTranslationMat4(vec3(-0.5f, 0.25f, 0.0f));
+	OrangeSquare = OrangeSquare * MatrixFactory::createScaleMat4(vec3(0.25f, 0.25f, 1.0f));
+
+
+	BlueParallelogram = MatrixFactory::createTranslationMat4(vec3(-0.50f, 0.25f, 0.0f));
+	BlueParallelogram = BlueParallelogram * MatrixFactory::createScaleMat4(vec3(0.25f, 0.32f, 1.0f));
+	BlueParallelogram = BlueParallelogram * MatrixFactory::createRotationMat4(-90.0f, vec3(0.0f, 0.0f, 1.0f));
+
+
+	vec4 vblue = vec4(0.0f, 0.0f, 1.0f, 1.0f);
+	vblue.getData(blue);
+	vec4 vred = vec4(1.0f, 0.0f, 0.0f, 1.0f);
+	vred.getData(red);
+	vec4 vgreen = vec4(0.0f, 1.0f, 0.0f, 1.0f);
+	vgreen.getData(green);
+	vec4 vyellow = vec4(1.0f, 1.0f, 0.0f, 1.0f);
+	vyellow.getData(yellow);
+	vec4 vorange = vec4(0.8f, 0.4f, 0.0f, 1.0f);
+	vorange.getData(orange);
+	vec4 vcyan = vec4(0.0f, 1.0f, 1.0f, 1.0f);
+	vcyan.getData(cyan);
+	vec4 vmagenta = vec4(1.0f, 0.0f, 1.0f, 1.0f);
+	vmagenta.getData(magenta);
+
+	vblue = vec4(0.5f, 0.5f, 1.0f, 1.0f);
+	vblue.getData(nblue);
+	vred = vec4(1.0f, 0.5f, 0.5f, 1.0f);
+	vred.getData(nred);
+	vgreen = vec4(0.6f, 1.0f, 0.6f, 1.0f);
+	vgreen.getData(ngreen);
+	vyellow = vec4(1.0f, 1.0f, 0.5f, 1.0f);
+	vyellow.getData(nyellow);
+	vorange = vec4(0.8f, 0.4f, 0.5f, 1.0f);
+	vorange.getData(norange);
+	vcyan = vec4(0.5f, 1.0f, 1.0f, 1.0f);
+	vcyan.getData(ncyan);
+	vmagenta = vec4(1.0f, 0.5f, 1.0f, 1.0f);
+	vmagenta.getData(nmagenta);
+}
 
 void setupCamera()
 {
@@ -413,6 +587,7 @@ GLFWwindow* setup(int major, int minor,
 	shader.createShaderProgram("shaders/vertex.shader", "shaders/fragment.shader");
 	createBufferObjects();
 	setupCamera();
+	setUpDraw();
 	return win;
 }
 

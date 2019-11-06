@@ -351,14 +351,12 @@ namespace engine {
 			vec4::z = v.z;
 			vec4::w = v.w;
 		}
-
-		float* vec4::getData()
+		void vec4::getData(float inData[])
 		{
-			data[0] = x;
-			data[1] = y;
-			data[2] = z;
-			data[3] = w;
-			return data;
+			inData[0] = x;
+			inData[1] = y;
+			inData[2] = z;
+			inData[3] = w;
 		}
 
 		void vec4::clean()

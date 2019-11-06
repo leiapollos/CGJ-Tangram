@@ -14,7 +14,7 @@ namespace engine
 	{
 	public:
 		GLuint VertexShaderId, FragmentShaderId, ProgramId = 0;
-		GLint UniformId, UboId;
+		GLint CUniformId, MUniformId, UboId;
 		const GLuint UBO_BP = 0;
 	public:
 		void createShaderProgram(const std::string& vertexShaderF, const std::string& fragmentShaderF);

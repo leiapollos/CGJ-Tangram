@@ -2,6 +2,7 @@
 #include <GL/glew.h>
 #include "Matrix.h"
 #include "Constants.h"
+#include <cmath>
 
 namespace engine
 {
@@ -12,10 +13,10 @@ namespace engine
 		enum TYPE { PERSPECTIVE, ORTHOGRAPHIC };
 		TYPE type;
 
-		float yaw, pitch;
 		float lastX, lastY;
 		bool firstMouseMovement;
 	public:	
+		float yaw, pitch;
 		vec3 up, eye, direction;
 		float speed;
 	public:
