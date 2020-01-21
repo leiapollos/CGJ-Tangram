@@ -1,0 +1,23 @@
+#pragma once
+
+#define PI 3.14159265f
+#define DEGREES_TO_RADIANS 0.01745329251994329547f
+#define RADIANS_TO_DEGREES 57.29577951308232185913f
+#define THRESHOLD 1.0e-5f
+
+#define EPSILON 0.0001f
+#define CLEAN_TOLERANCE 4
+
+#define CAMERA_SPEED 0.1f
+#define CAMERA_SENSITIVITY 0.3f
+#define CAMERA_ZOOM_SPEED 0.2f
+
+#define HEIGHT 480.0f
+#define WIDTH 640.0f
+
+#define VERTICES 0
+#define TEXCOORDS 1
+#define NORMALS 2
+#define COLORS 3
+
+#define ANIMATIONTIME 3.0f
