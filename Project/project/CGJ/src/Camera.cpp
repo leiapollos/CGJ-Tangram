@@ -4,21 +4,22 @@ engine::Camera::Camera()
 {
 	//DEFAULT INITIALIZATION
 
-	eye = vec3(-0.42f, 2.02f, 3.82f);
+	eye = vec3(0.0f, 0.0f, 5.00f);
 	up = vec3(0.0f, 1.0f, 0.0f);
-	direction = vec3(-0.00f, -0.37f, -0.92f);
+	direction = vec3(0.0f, 0.0f, -1.0f);
 	direction = normalize(direction);
-	speed = CAMERA_SPEED;
 
-	createAndSetPerspectiveMatrix(30.0f, 640.0f / 480.0f, 1, 10);
+	createAndSetPerspectiveMatrix(30.0f, WIDTH / HEIGHT, 1, 10);
 	createAndSetOrthographicMatrix(-2, 2, -2, 2, 1, 10);
-	createAndSetViewMatrix(eye, eye + direction, up);
 	type = PERSPECTIVE;
+	state = OFF;
 	projectionMatrix = perspectiveMatrix;
 
-	getYawPitchFromDirectionVector(direction);
-	yaw = -90.0f;
-	pitch = -20.0f;
+	T = MatrixFactory::createTranslationMat4(vec3(0.0f,0.0f,-5.0f));
+	R = MatrixFactory::createIdentityMat4();
+	q = qtrn();
+	mat4 qR = MatrixFactory::createMat4FromQtrn(q);
+	viewMatrix = T * qR;
 
 	firstMouseMovement = true;
 }
@@ -74,6 +75,31 @@ void engine::Camera::switchProjectionMatrix()
 	}
 }
 
+void engine::Camera::switchGimbleLock()
+{
+	if (state == ON) {
+		state = OFF;
+		std::cout << "GIMBLE-LOCK: OFF" << std::endl;
+	}
+	else if (state == OFF) {
+		state = ON;
+		std::cout << "GIMBLE-LOCK: ON" << std::endl;
+	}
+}
+
+void engine::Camera::srollCallBack(float offset)
+{
+	mat4 NT = MatrixFactory::createTranslationMat4(vec3(0.0f, 0.0f, offset*CAMERA_ZOOM_SPEED));
+	T = T * NT;
+	if (state == ON) {
+		viewMatrix = T * R;
+	}
+	else if (state == OFF) {
+		mat4 qR = MatrixFactory::createMat4FromQtrn(q);
+		viewMatrix = T * qR;
+	}
+}
+
 void engine::Camera::mouseCallBack(float xpos, float ypos)
 {
 	if (firstMouseMovement)
@@ -88,44 +114,22 @@ void engine::Camera::mouseCallBack(float xpos, float ypos)
 	lastX = xpos;
 	lastY = ypos;
 
-	float sensitivity = CAMERA_SENSITIVITY;
-	xoffset *= sensitivity;
-	yoffset *= sensitivity;
+	xoffset *= CAMERA_SENSITIVITY;
+	yoffset *= CAMERA_SENSITIVITY;
 
-	yaw += xoffset;
-	pitch += yoffset;
-
-	if (pitch > 89.9f)
-		pitch = 89.9f;
-	if (pitch < -89.9f)
-		pitch = -89.9f;
-
-	direction.x = cos(yaw * PI / 180.0f) * cos(pitch * PI / 180.0f);
-	direction.y = sin(pitch * PI / 180.0f);
-	direction.z = sin(yaw * PI / 180.0f) * cos(pitch * PI / 180.0f);
-
-	direction = normalize(direction);
-}
-
-void engine::Camera::getYawPitchFromDirectionVector(const vec3& direction)
-{
-	/*
-	yaw = atan2(direction.x, direction.z);
-	pitch = atan2(direction.y, direction.length());
-	*/
-	/*
-	yaw = atan(direction.x / (-direction.y));
-	pitch = atan(sqrt(pow(direction.x, 2) + pow(direction.y, 2)) / direction.z);
-	*/
-	
-	pitch = asin(direction.y);
-	yaw = atan2(direction.x, direction.z);
-	
-	/*
-	pitch = asin(direction.y / direction.length());
-	yaw = asin(direction.x / (cos(pitch) * direction.length()));
-	*/
-
-	yaw = yaw * 180.0f / PI;
-	pitch = pitch * 180.0f / PI;
+	if (state == ON) {
+		yoffset *= -1.0f;
+		mat4 rx = MatrixFactory::createRotationMat4(xoffset, vec3(0.0f, 1.0f, 0.0f));
+		mat4 ry = MatrixFactory::createRotationMat4(yoffset, vec3(1.0f, 0.0f, 0.0f));
+		R = R * rx * ry;
+		viewMatrix = T * R;
+	}
+	else if (state == OFF) {
+		xoffset *= -1.0f;
+		qtrn qx = qx.qFromAngleAxis(xoffset, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+		qtrn qy = qy.qFromAngleAxis(yoffset, vec4(1.0f, 0.0f, 0.0f, 1.0f));
+		q = q * qx * qy;		
+		mat4 qR = MatrixFactory::createMat4FromQtrn(q);
+		viewMatrix = T * qR;
+	}
 }

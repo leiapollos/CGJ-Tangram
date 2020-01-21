@@ -1,33 +1,23 @@
-///////////////////////////////////////////////////////////////////////////////
-//
-// Assignment consists in the following:
-//
-// - Create the following changes to your scene:
-//   - Make your TANs double-faced, so they can be seen from both sides.
-//   - The new face of each TAN should share the same hue as the original top
-//     face color but have a different level of saturation and brightness.
-//
-// (c) 2013-19 by Carlos Martinho
-//
-///////////////////////////////////////////////////////////////////////////////
-
 #include <iostream>
-
 #include <GL/glew.h>
 #include <GLFW/glfw3.h>
 #include "Matrix.h"
 #include "Vector.h"
 #include "Shader.h"
 #include "Camera.h"
-
-#define VERTICES 0
-#define COLORS 1
+#include "Quaternions.h"
+#include "MatrixFactory.h"
+#include "Mesh.h"
+#include "SceneNode.h"
+#include "SceneGraph.h"
 
 using namespace engine;
 
 GLuint VaoId, VboId[3];
 Shader shader;
-Camera camera;
+Camera* camera;
+SceneGraph scene;
+Mesh mesh;
 bool firstMouse = true;
 float lastX, lastY;
 
@@ -102,258 +92,169 @@ void setupErrorCallback()
 
 /////////////////////////////////////////////////////////////////// VAOs & VBOs
 
-typedef struct {
-	GLfloat XYZW[4];
-	GLfloat RGBA[4];
-} Vertex;
-
 typedef GLfloat Matrix[16];
 
 
-const Vertex Vertices[] =
-{
-	{{ 0.0f, 0.0f, 0.0f, 1.0f }, { blue[0], blue[1], blue[2], blue[3] } }, //0
-	{{ 0.5f, 0.0f, 0.0f, 1.0f }, { blue[0], blue[1], blue[2], blue[3] }}, //1
-	{{ 0.5f, 0.5f, 0.0f, 1.0f },{ blue[0], blue[1], blue[2], blue[3] }}, //2
-	{{ 0.0f, 0.5f, 0.0f, 1.0f }, { blue[0], blue[1], blue[2], blue[3] }}, //3
-
-
-	{{ 0.0f, 0.0f, 0.0f, 1.0f }, { red[0], red[1], red[2], red[3] }}, //4
-	{{ 0.0f, 0.5f, 0.0f, 1.0f }, { red[0], red[1], red[2], red[3] }}, //5
-	{{ 0.5f, 0.25f, 0.0f, 1.0f }, { red[0], red[1], red[2], red[3] }}, //6
-	{{ 0.5f, 0.75f, 0.0f, 1.0f }, { red[0], red[1], red[2], red[3] }}, //7
-
-
-	{{ 0.0f, 0.0f, 0.0f, 1.0f }, { green[0], green[1], green[2], green[3] }}, //8
-	{{ 0.25f, 0.0f, 0.0f, 1.0f }, { green[0], green[1], green[2], green[3] }}, //9
-	{{ 0.25f, 0.25f, 0.0f, 1.0f }, { green[0], green[1], green[2], green[3] }} //10
-};
-
-const GLubyte Indices[] =
-{
-	0,1,2,
-	2,3,0, //6
-
-	6,5,4,
-	5,6,7, //12
-
-	8,9,10,  //15
-	
-	2,1,0,
-	0,3,2, //21
-
-	4,5,7,
-	7,6,4, //27
-
-	10,9,8 //30
-
-};
-
-/*const Vertex Vertices[] = // no indices?
-{
-	{{ 0.0f, 0.0f, 1.0f, 1.0f }, { 0.9f, 0.0f, 0.0f, 1.0f }}, // 0 - FRONT
-	{{ 1.0f, 0.0f, 1.0f, 1.0f }, { 0.9f, 0.0f, 0.0f, 1.0f }}, // 1
-	{{ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.9f, 0.0f, 0.0f, 1.0f }}, // 2
-	{{ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.9f, 0.0f, 0.0f, 1.0f }}, // 2	
-	{{ 0.0f, 1.0f, 1.0f, 1.0f }, { 0.9f, 0.0f, 0.0f, 1.0f }}, // 3
-	{{ 0.0f, 0.0f, 1.0f, 1.0f }, { 0.9f, 0.0f, 0.0f, 1.0f }}, // 0
-
-	{{ 1.0f, 0.0f, 1.0f, 1.0f }, { 0.0f, 0.9f, 0.0f, 1.0f }}, // 1 - RIGHT
-	{{ 1.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, 0.9f, 0.0f, 1.0f }}, // 5
-	{{ 1.0f, 1.0f, 0.0f, 1.0f }, { 0.0f, 0.9f, 0.0f, 1.0f }}, // 6
-	{{ 1.0f, 1.0f, 0.0f, 1.0f }, { 0.0f, 0.9f, 0.0f, 1.0f }}, // 6	
-	{{ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, 0.9f, 0.0f, 1.0f }}, // 2
-	{{ 1.0f, 0.0f, 1.0f, 1.0f }, { 0.0f, 0.9f, 0.0f, 1.0f }}, // 1
-
-	{{ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.9f, 1.0f }}, // 2 - TOP
-	{{ 1.0f, 1.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, 0.9f, 1.0f }}, // 6
-	{{ 0.0f, 1.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, 0.9f, 1.0f }}, // 7
-	{{ 0.0f, 1.0f, 0.0f, 1.0f }, { 0.0f, 0.0f, 0.9f, 1.0f }}, // 7	
-	{{ 0.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.9f, 1.0f }}, // 3
-	{{ 1.0f, 1.0f, 1.0f, 1.0f }, { 0.0f, 0.0f, 0.9f, 1.0f }}, // 2
-
-	{{ 1.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, 0.9f, 0.9f, 1.0f }}, // 5 - BACK
-	{{ 0.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, 0.9f, 0.9f, 1.0f }}, // 4
-	{{ 0.0f, 1.0f, 0.0f, 1.0f }, { 0.0f, 0.9f, 0.9f, 1.0f }}, // 7
-	{{ 0.0f, 1.0f, 0.0f, 1.0f }, { 0.0f, 0.9f, 0.9f, 1.0f }}, // 7	
-	{{ 1.0f, 1.0f, 0.0f, 1.0f }, { 0.0f, 0.9f, 0.9f, 1.0f }}, // 6
-	{{ 1.0f, 0.0f, 0.0f, 1.0f }, { 0.0f, 0.9f, 0.9f, 1.0f }}, // 5
-
-	{{ 0.0f, 0.0f, 0.0f, 1.0f }, { 0.9f, 0.0f, 0.9f, 1.0f }}, // 4 - LEFT
-	{{ 0.0f, 0.0f, 1.0f, 1.0f }, { 0.9f, 0.0f, 0.9f, 1.0f }}, // 0
-	{{ 0.0f, 1.0f, 1.0f, 1.0f }, { 0.9f, 0.0f, 0.9f, 1.0f }}, // 3
-	{{ 0.0f, 1.0f, 1.0f, 1.0f }, { 0.9f, 0.0f, 0.9f, 1.0f }}, // 3	
-	{{ 0.0f, 1.0f, 0.0f, 1.0f }, { 0.9f, 0.0f, 0.9f, 1.0f }}, // 7
-	{{ 0.0f, 0.0f, 0.0f, 1.0f }, { 0.9f, 0.0f, 0.9f, 1.0f }}, // 4
-
-	{{ 0.0f, 0.0f, 1.0f, 1.0f }, { 0.9f, 0.9f, 0.0f, 1.0f }}, // 0 - BOTTOM
-	{{ 0.0f, 0.0f, 0.0f, 1.0f }, { 0.9f, 0.9f, 0.0f, 1.0f }}, // 4
-	{{ 1.0f, 0.0f, 0.0f, 1.0f }, { 0.9f, 0.9f, 0.0f, 1.0f }}, // 5
-	{{ 1.0f, 0.0f, 0.0f, 1.0f }, { 0.9f, 0.9f, 0.0f, 1.0f }}, // 5	
-	{{ 1.0f, 0.0f, 1.0f, 1.0f }, { 0.9f, 0.9f, 0.0f, 1.0f }}, // 1
-	{{ 0.0f, 0.0f, 1.0f, 1.0f }, { 0.9f, 0.9f, 0.0f, 1.0f }}  // 0
-};*/
-
-void createBufferObjects()
-{
-	glGenVertexArrays(1, &VaoId);
-	glBindVertexArray(VaoId);
-	{
-		glGenBuffers(3, VboId);
-
-		glBindBuffer(GL_ARRAY_BUFFER, VboId[0]);
-		{
-			glBufferData(GL_ARRAY_BUFFER, sizeof(Vertices), Vertices, GL_STATIC_DRAW);
-			glEnableVertexAttribArray(VERTICES);
-			glVertexAttribPointer(VERTICES, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), 0);
-			glEnableVertexAttribArray(COLORS);
-			glVertexAttribPointer(COLORS, 4, GL_FLOAT, GL_FALSE, sizeof(Vertex), (GLvoid*)sizeof(Vertices[0].XYZW));
-		}
-		glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, VboId[2]);
-		{
-			glBufferData(GL_ELEMENT_ARRAY_BUFFER, sizeof(Indices), Indices, GL_STATIC_DRAW);
-		}
-	}
-	glBindVertexArray(0);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_UNIFORM_BUFFER, VboId[1]);
-	{
-		glBufferData(GL_UNIFORM_BUFFER, sizeof(Matrix) * 2, 0, GL_STREAM_DRAW);
-		glBindBufferBase(GL_UNIFORM_BUFFER, shader.UBO_BP, VboId[1]);
-	}
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-}
-
-void destroyBufferObjects()
-{
-	glBindVertexArray(VaoId);
-	glDisableVertexAttribArray(VERTICES);
-	glDisableVertexAttribArray(COLORS);
-	glDeleteBuffers(3, VboId);
-	glDeleteVertexArrays(1, &VaoId);
-	glBindBuffer(GL_ARRAY_BUFFER, 0);
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
-	glBindVertexArray(0);
-}
-
 /////////////////////////////////////////////////////////////////////// SCENE
-
-const Matrix I = {
-	1.0f,  0.0f,  0.0f,  0.0f,
-	0.0f,  1.0f,  0.0f,  0.0f,
-	0.0f,  0.0f,  1.0f,  0.0f,
-	0.0f,  0.0f,  0.0f,  1.0f
-};
-
-const Matrix ModelMatrix = {
-	1.0f,  0.0f,  0.0f,  0.0f,
-	0.0f,  1.0f,  0.0f,  0.0f,
-	0.0f,  0.0f,  1.0f,  0.0f,
-   -0.5f, -0.5f, -0.5f,  1.0f
-}; // Column Major
-
-// Eye(5,5,5) Center(0,0,0) Up(0,1,0)
-
-// Eye(-5,-5,-5) Center(0,0,0) Up(0,1,0)
-
-// Orthographic LeftRight(-2,2) BottomTop(-2,2) NearFar(1,10)
-
-// Perspective Fovy(30) Aspect(640/480) NearZ(1) FarZ(10)
-
-mat4 BlueParallelogram;
-mat4 RedTriangle;
-mat4 MagentaTriangle;
-mat4 CyanTriangle;
-mat4 GreenTriangle;
-mat4 YellowTriangle;
-mat4 OrangeSquare;
 
 void drawScene()
 {
+	scene.draw();
+}
 
-	camera.createAndSetViewMatrix(camera.eye, camera.eye + camera.direction, camera.up);
-	mat4 viewMatrix = camera.getViewMatrix();
-	mat4 projectionMatrix = camera.getProjectionMatrix();
-	glBindBuffer(GL_UNIFORM_BUFFER, VboId[1]);
-	{
-		glBufferSubData(GL_UNIFORM_BUFFER, 0, sizeof(Matrix), viewMatrix.getData());
-		glBufferSubData(GL_UNIFORM_BUFFER, sizeof(Matrix), sizeof(Matrix), projectionMatrix.getData());
-	}
-	glBindBuffer(GL_UNIFORM_BUFFER, 0);
+void createScene()
+{
+	std::string mesh_dir = "../../assets/models/blender_2.80/";
+	
+	//Floor
+	std::string mesh_file = "plane.obj";
+	std::string mesh_fullname = mesh_dir + mesh_file;
+	Mesh* squareMesh = new Mesh();
+	squareMesh->createMesh(mesh_fullname);
 
-	glBindVertexArray(VaoId);
-	glUseProgram(shader.ProgramId);
+	Shader* shader01 = new Shader();
+	shader01->mesh = squareMesh;
+	shader01->createShaderProgram("shaders/vertex.shader", "shaders/fragment.shader");
+	
+	squareMesh->createBufferObjects();
 
-	//FRONT
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, OrangeSquare.getData()); //SQUARE
-	glUniform4fv(shader.CUniformId, 1, orange);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (GLvoid*)0);
+	SceneNode* ground = new SceneNode(nullptr, 0.0f); //Can set translation, rotation and color as well
+	ground->setMesh(squareMesh);
+	ground->setColor(vec4(0.0f, 0.0f, 1.0f, 1.0f));
+	qtrn q = q.qFromAngleAxis(0.0f, vec4(1.0f, 0.0f, 0.0f, 1.0f));
+	ground->setQuaternion(q);
+	ground->setScaleMatirx(MatrixFactory::createScaleMat4(vec3(0.6f)));
+	ground->setShader(shader01);
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, BlueParallelogram.getData()); //PARALLELOGRAM
-	glUniform4fv(shader.CUniformId, 1, blue);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (GLvoid*)6);
+	//Square
+	SceneNode* square = new SceneNode(ground, 1.0f); //Can set translation, rotation and color as well
+	square->setMesh(squareMesh);
+	square->setColor(vec4(1.0f, 1.0f, 0.0f, 1.0f));
+	square->setAnimationTranslation(
+		vec3(0.2f, 0.1f, 0.0f),
+		vec3(0.0f, 0.1f, -0.4f)
+	);
+	qtrn qSquare = qSquare.qFromAngleAxis(45.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	square->setQuaternion(qSquare);
+	square->setScaleMatirx(MatrixFactory::createScaleMat4(vec3(0.08f,0.2f,0.08f)));
+	square->setShader(shader01);
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, CyanTriangle.getData()); //CYAN
-	glUniform4fv(shader.CUniformId, 1, cyan);
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)12);
+	//Triangle
+	mesh_file = "triangle.obj";
+	mesh_fullname = mesh_dir + mesh_file;
+	Mesh* triangleMesh = new Mesh();
+	triangleMesh->createMesh(mesh_fullname);
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, RedTriangle.getData()); //RED
-	glUniform4fv(shader.CUniformId, 1, red);
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)12);
+	Shader* triangleShader = new Shader();
+	triangleShader->mesh = triangleMesh;
+	triangleShader->createShaderProgram("shaders/vertex.shader", "shaders/fragment.shader");
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, MagentaTriangle.getData()); //MAGENTA
-	glUniform4fv(shader.CUniformId, 1, magenta);
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)12);
+	triangleMesh->createBufferObjects();
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, GreenTriangle.getData()); //GREEN
-	glUniform4fv(shader.CUniformId, 1, green);
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)12);
+	//Triangle Red
+	SceneNode* triangle = new SceneNode(ground, 2.0f); //Can set translation, rotation and color as well
+	triangle->setMesh(triangleMesh);
+	triangle->setColor(vec4(1.0f, 0.0f, 0.0f, 1.0f));
+	triangle->setTranslation(vec3(-0.4f, 0.1f, 0.8f));
+	triangle->setAnimationTranslation(
+		vec3(0.0f, 0.1f, 0.0f),
+		vec3(-0.4f, 0.1f, 0.8f)
+	);
+	qtrn qRed = qRed.qFromAngleAxis(90.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	qtrn qRed1 = qRed.qFromAngleAxis(135.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	triangle->setAnimationQuaternion(qRed,qRed1);
+	triangle->setScaleMatirx(MatrixFactory::createScaleMat4(vec3(0.4f, 0.2f, 0.4f)));
+	triangle->setShader(triangleShader);
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, YellowTriangle.getData()); //YELLOW
-	glUniform4fv(shader.CUniformId, 1, yellow);
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)12);
+	//Triangle Green
+	SceneNode* triangle2 = new SceneNode(ground, 3.0f); //Can set translation, rotation and color as well
+	triangle2->setMesh(triangleMesh);
+	triangle2->setColor(vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	triangle2->setAnimationTranslation(
+		vec3(0.0f, 0.1f, 0.0f),
+		vec3(-0.5f, 0.1f, 0.1f)
+	);
+	qtrn qGreen = qGreen.qFromAngleAxis(0.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	qtrn qGreen1 = qGreen.qFromAngleAxis(180.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	triangle2->setAnimationQuaternion(qGreen,qGreen1);
+	triangle2->setScaleMatirx(MatrixFactory::createScaleMat4(vec3(0.4f, 0.2f, 0.4f)));
+	triangle2->setShader(triangleShader);
 
-	//BACK
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, OrangeSquare.getData()); //SQUARE
-	glUniform4fv(shader.CUniformId, 1, norange);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (GLvoid*)15);
+	//Triangle Orange
+	SceneNode* triangle3 = new SceneNode(ground, 4.0f); //Can set translation, rotation and color as well
+	triangle3->setMesh(triangleMesh);
+	triangle3->setColor(vec4(1.0f, 0.5f, 0.0f, 1.0f));
+	triangle3->setAnimationTranslation(
+		vec3(0.4f, 0.1f, 0.4f),
+		vec3(0.2f, 0.1f, -0.0f)
+	);
+	qtrn qOrange = qOrange.qFromAngleAxis(45.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	qtrn qOrange1 = qOrange.qFromAngleAxis(0.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	triangle3->setAnimationQuaternion(qOrange,qOrange1);
+	triangle3->setScaleMatirx(MatrixFactory::createScaleMat4(vec3(0.3f,0.2f,0.3f)));
+	triangle3->setShader(triangleShader);
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, BlueParallelogram.getData()); //PARALLELOGRAM
-	glUniform4fv(shader.CUniformId, 1, nblue);
-	glDrawElements(GL_TRIANGLES, 6, GL_UNSIGNED_BYTE, (GLvoid*)21);
+	//Triangle Brown
+	SceneNode* triangle4 = new SceneNode(ground, 5.0f); //Can set translation, rotation and color as well
+	triangle4->setMesh(triangleMesh);
+	triangle4->setColor(vec4(0.5f, 0.0f, 0.0f, 1.0f));
+	triangle4->setAnimationTranslation(
+		vec3(0.2f, 0.1f, -0.2f), 
+		vec3(0.0f, 0.1f, -0.6f)
+	);
+	qtrn qBrown = qBrown.qFromAngleAxis(180.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	triangle4->setQuaternion(qBrown);
+	triangle4->setScaleMatirx(MatrixFactory::createScaleMat4(vec3(0.2f)));
+	triangle4->setShader(triangleShader);
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, CyanTriangle.getData()); //CYAN
-	glUniform4fv(shader.CUniformId, 1, ncyan);
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)27);
+	//Triangle Purple
+	SceneNode* triangle5 = new SceneNode(ground, 6.0f); //Can set translation, rotation and color as well
+	triangle5->setMesh(triangleMesh);
+	triangle5->setColor(vec4(0.5f, 0.0f, 0.5f, 1.0f));
+	triangle5->setAnimationTranslation(
+		vec3(0.0f, 0.1f, 0.0f), 
+		vec3(0.0f, 0.1f, -0.6f)
+	);
+	qtrn qPurple = qPurple.qFromAngleAxis(-90.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	qtrn qPurple1 = qPurple.qFromAngleAxis(0.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	triangle5->setAnimationQuaternion(qPurple,qPurple1);
+	triangle5->setScaleMatirx(MatrixFactory::createScaleMat4(vec3(0.2f)));
+	triangle5->setShader(triangleShader);
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, RedTriangle.getData()); //RED
-	glUniform4fv(shader.CUniformId, 1, nred);
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)27);
+	//Parallelogram
+	mesh_file = "parallelogram.obj";
+	mesh_fullname = mesh_dir + mesh_file;
+	Mesh* parallelogramMesh = new Mesh();
+	parallelogramMesh->createMesh(mesh_fullname);
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, MagentaTriangle.getData()); //MAGENTA
-	glUniform4fv(shader.CUniformId, 1, nmagenta);
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)27);
+	Shader* parallelogramShader = new Shader();
+	parallelogramShader->mesh = parallelogramMesh;
+	parallelogramShader->createShaderProgram("shaders/vertex.shader", "shaders/fragment.shader");
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, GreenTriangle.getData()); //GREEN
-	glUniform4fv(shader.CUniformId, 1, ngreen);
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)27);
+	parallelogramMesh->createBufferObjects();
 
-	glUniformMatrix4fv(shader.MUniformId, 1, GL_FALSE, YellowTriangle.getData()); //YELLOW
-	glUniform4fv(shader.CUniformId, 1, nyellow);
-	glDrawElements(GL_TRIANGLES, 3, GL_UNSIGNED_BYTE, (GLvoid*)27);
+	SceneNode* parallelogram = new SceneNode(ground, 7.0f); //Can set translation, rotation and color as well
+	parallelogram->setMesh(parallelogramMesh);
+	parallelogram->setColor(vec4(0.0f, 1.0f, 1.0f, 1.0f));
+	parallelogram->setAnimationTranslation(
+		vec3(-0.12f, 0.1f, 0.31f), 
+		vec3(-0.67f, 0.1f, 0.67f)
+	);
+	qtrn qParallelogram = qParallelogram.qFromAngleAxis(45.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	qtrn qParallelogram1 = qParallelogram.qFromAngleAxis(90.0f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+	parallelogram->setAnimationQuaternion(qParallelogram, qParallelogram1);
+	parallelogram->setScaleMatirx(MatrixFactory::createScaleMat4(vec3(0.13f,0.2f,0.13f)));
+	parallelogram->setShader(parallelogramShader);
 
-
-	glUseProgram(0);
-	glBindVertexArray(0);
+	scene.setRoot(ground);
+	scene.setCamera(camera);
 }
 
 ///////////////////////////////////////////////////////////////////// CALLBACKS
 
 void window_close_callback(GLFWwindow* win)
 {
-	shader.destroyShaderProgram();
-	destroyBufferObjects();
+	scene.destroy();
 }
 
 void window_size_callback(GLFWwindow* win, int winx, int winy)
@@ -363,42 +264,69 @@ void window_size_callback(GLFWwindow* win, int winx, int winy)
 
 void key_callback(GLFWwindow* win, int key, int scancode, int action, int mods)
 {
-	//std::cout << "key: " << key << " " << scancode << " " << action << " " << mods << std::endl;
+	std::cout << "key: " << key << " " << scancode << " " << action << " " << mods << std::endl;
 	if (key == GLFW_KEY_ESCAPE && action == GLFW_PRESS)
 	{
 		glfwSetWindowShouldClose(win, GLFW_TRUE);
 		window_close_callback(win);
 	}
 	if (key == GLFW_KEY_P && action == 1) {
-		camera.switchProjectionMatrix();
-	}
-	if (glfwGetKey(win, GLFW_KEY_W) == GLFW_PRESS) {
-		camera.eye += camera.direction * camera.speed;
-	}
-	if (glfwGetKey(win, GLFW_KEY_S) == GLFW_PRESS) {
-		camera.eye -= camera.direction * camera.speed;
-	}
-	if (key == GLFW_KEY_A && (action == 2 || action == 1)) {
-		camera.eye -= normalize(cross(camera.direction, camera.up)) * camera.speed;
-	}
-	if (key == GLFW_KEY_D && (action == 2 || action == 1)) {
-		camera.eye += normalize(cross(camera.direction,camera.up)) * camera.speed;
+		camera->switchProjectionMatrix();
 	}
 
 	//RESET CAMERA
-	if (key == GLFW_KEY_R) {
-		camera = Camera();
+	if (key == GLFW_KEY_T) {
+		camera = new Camera();
+		scene.setCamera(camera);
 	}
 
-	if (key == GLFW_KEY_F) {
-		std::cout << camera.eye << camera.direction << camera.yaw << " " <<camera.pitch << std::endl;
+	if (key == GLFW_KEY_G && action == 1) {
+		camera->switchGimbleLock();
+	}
+
+	if (glfwGetKey(win, GLFW_KEY_F) == GLFW_PRESS) {
+		scene.animate();
+	}
+
+	if (glfwGetKey(win, GLFW_KEY_E) == GLFW_PRESS) {
+		qtrn q = scene.getRoot()->localQuaternion * q.qFromAngleAxis(0.5f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+		scene.getRoot()->setQuaternion(q);
+	}
+
+	if (glfwGetKey(win, GLFW_KEY_Q) == GLFW_PRESS) {
+		qtrn q = scene.getRoot()->localQuaternion * q.qFromAngleAxis(-0.5f, vec4(0.0f, 1.0f, 0.0f, 1.0f));
+		scene.getRoot()->setQuaternion(q);
+	}
+
+	if (glfwGetKey(win, GLFW_KEY_W) == GLFW_PRESS) {
+		vec3 T = vec3(0.0f, 0.0f, -0.02f) + scene.getRoot()->localTranslationVec;
+		scene.getRoot()->setTranslation(T);
+	}
+
+	if (glfwGetKey(win, GLFW_KEY_S) == GLFW_PRESS) {
+		vec3 T = vec3(0.0f, 0.0f, 0.02f) + scene.getRoot()->localTranslationVec;
+		scene.getRoot()->setTranslation(T);
+	}
+
+	if (glfwGetKey(win, GLFW_KEY_A) == GLFW_PRESS) {
+		vec3 T = vec3(-0.02f, 0.0f, 0.0f) + scene.getRoot()->localTranslationVec;
+		scene.getRoot()->setTranslation(T);
+	}
+
+	if (glfwGetKey(win, GLFW_KEY_D) == GLFW_PRESS) {
+		vec3 T = vec3(0.02f, 0.0f, 0.0f) + scene.getRoot()->localTranslationVec;
+		scene.getRoot()->setTranslation(T);
 	}
 }
 
 void mouse_callback(GLFWwindow* win, double xpos, double ypos)
 {
 	//std::cout << "mouse: " << xpos << " " << ypos << std::endl;
-	camera.mouseCallBack((float)xpos,(float)ypos);
+	int state = glfwGetMouseButton(win, GLFW_MOUSE_BUTTON_LEFT);
+	if (state == GLFW_PRESS)
+		camera->mouseCallBack((float)xpos, (float)ypos);
+	else
+		camera->firstMouseMovement = true;
 }
 
 void mouse_button_callback(GLFWwindow* win, int button, int action, int mods)
@@ -408,7 +336,8 @@ void mouse_button_callback(GLFWwindow* win, int button, int action, int mods)
 
 void scroll_callback(GLFWwindow* win, double xoffset, double yoffset)
 {
-	std::cout << "scroll: " << xoffset << " " << yoffset << std::endl;
+	//std::cout << "scroll: " << xoffset << " " << yoffset << std::endl;
+	camera->srollCallBack((float)yoffset);
 }
 
 void joystick_callback(int jid, int event)
@@ -419,67 +348,9 @@ void joystick_callback(int jid, int event)
 
 ///////////////////////////////////////////////////////////////////////// SETUP
 
-void setUpDraw() {
-
-	YellowTriangle = MatrixFactory::createTranslationMat4(vec3(-0.5f, 0.25f, 0.0f));
-	YellowTriangle = YellowTriangle * MatrixFactory::createScaleMat4(vec3(0.5f, 0.5f, 1.0f));
-	YellowTriangle = YellowTriangle * MatrixFactory::createRotationMat4(90.0f, vec3(0.0f, 0.0f, 1.0f));
-
-	GreenTriangle = MatrixFactory::createTranslationMat4(vec3(-0.75f, 0.5f, 0.0f));
-	GreenTriangle = GreenTriangle * MatrixFactory::createScaleMat4(vec3(0.5f, 0.5f, 1.0f));
-
-	CyanTriangle = MatrixFactory::createTranslationMat4(vec3(-0.625f, 0.376f, 0.0f));
-	CyanTriangle = CyanTriangle * MatrixFactory::createRotationMat4(45.0f, vec3(0.0f, 0.0f, 1.0f));
-	CyanTriangle = CyanTriangle * MatrixFactory::createScaleMat4(vec3(0.71f, 0.71f, 1.0f));
-
-	RedTriangle = MatrixFactory::createTranslationMat4(vec3(-0.625f, 0.376f, 0.0f));
-
-	MagentaTriangle = MatrixFactory::createTranslationMat4(vec3(-0.125f, 0.626f, 0.0f));
-	MagentaTriangle = MagentaTriangle * MatrixFactory::createRotationMat4(180.0f, vec3(0.0f, 0.0f, 1.0f));
-
-	OrangeSquare = MatrixFactory::createTranslationMat4(vec3(-0.5f, 0.25f, 0.0f));
-	OrangeSquare = OrangeSquare * MatrixFactory::createScaleMat4(vec3(0.25f, 0.25f, 1.0f));
-
-
-	BlueParallelogram = MatrixFactory::createTranslationMat4(vec3(-0.50f, 0.25f, 0.0f));
-	BlueParallelogram = BlueParallelogram * MatrixFactory::createScaleMat4(vec3(0.25f, 0.32f, 1.0f));
-	BlueParallelogram = BlueParallelogram * MatrixFactory::createRotationMat4(-90.0f, vec3(0.0f, 0.0f, 1.0f));
-
-
-	vec4 vblue = vec4(0.0f, 0.0f, 1.0f, 1.0f);
-	vblue.getData(blue);
-	vec4 vred = vec4(1.0f, 0.0f, 0.0f, 1.0f);
-	vred.getData(red);
-	vec4 vgreen = vec4(0.0f, 1.0f, 0.0f, 1.0f);
-	vgreen.getData(green);
-	vec4 vyellow = vec4(1.0f, 1.0f, 0.0f, 1.0f);
-	vyellow.getData(yellow);
-	vec4 vorange = vec4(0.8f, 0.4f, 0.0f, 1.0f);
-	vorange.getData(orange);
-	vec4 vcyan = vec4(0.0f, 1.0f, 1.0f, 1.0f);
-	vcyan.getData(cyan);
-	vec4 vmagenta = vec4(1.0f, 0.0f, 1.0f, 1.0f);
-	vmagenta.getData(magenta);
-
-	vblue = vec4(0.5f, 0.5f, 1.0f, 1.0f);
-	vblue.getData(nblue);
-	vred = vec4(1.0f, 0.5f, 0.5f, 1.0f);
-	vred.getData(nred);
-	vgreen = vec4(0.6f, 1.0f, 0.6f, 1.0f);
-	vgreen.getData(ngreen);
-	vyellow = vec4(1.0f, 1.0f, 0.5f, 1.0f);
-	vyellow.getData(nyellow);
-	vorange = vec4(0.8f, 0.4f, 0.5f, 1.0f);
-	vorange.getData(norange);
-	vcyan = vec4(0.5f, 1.0f, 1.0f, 1.0f);
-	vcyan.getData(ncyan);
-	vmagenta = vec4(1.0f, 0.5f, 1.0f, 1.0f);
-	vmagenta.getData(nmagenta);
-}
-
 void setupCamera()
 {
-	camera = Camera();
+	camera = new Camera();
 }
 
 void glfw_error_callback(int error, const char* description)
@@ -509,7 +380,7 @@ void setupCallbacks(GLFWwindow* win)
 	glfwSetWindowSizeCallback(win, window_size_callback);
 	glfwSetCursorPosCallback(win, mouse_callback);
 	glfwSetMouseButtonCallback(win, mouse_button_callback);
-	glfwSetInputMode(win, GLFW_CURSOR, GLFW_CURSOR_DISABLED);
+	glfwSetScrollCallback(win, scroll_callback);
 }
 
 GLFWwindow* setupGLFW(int gl_major, int gl_minor,
@@ -584,10 +455,10 @@ GLFWwindow* setup(int major, int minor,
 	setupGLEW();
 	setupOpenGL(winx, winy);
 	setupErrorCallback();
-	shader.createShaderProgram("shaders/vertex.shader", "shaders/fragment.shader");
-	createBufferObjects();
+
 	setupCamera();
-	setUpDraw();
+	
+	createScene();
 	return win;
 }
 
@@ -624,7 +495,7 @@ int main(int argc, char* argv[])
 	int is_fullscreen = 0;
 	int is_vsync = 1;
 	GLFWwindow* win = setup(gl_major, gl_minor,
-		640, 480, "Hello Modern 3D World", is_fullscreen, is_vsync);
+		(int)WIDTH, (int)HEIGHT, "Hello Modern 3D World", is_fullscreen, is_vsync);
 	run(win);
 	exit(EXIT_SUCCESS);
 }

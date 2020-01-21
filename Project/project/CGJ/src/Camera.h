@@ -1,6 +1,9 @@
+#pragma once
 #include <iostream>
 #include <GL/glew.h>
 #include "Matrix.h"
+#include "MatrixFactory.h"
+#include "Quaternions.h"
 #include "Constants.h"
 #include <cmath>
 
@@ -12,13 +15,16 @@ namespace engine
 		mat4 viewMatrix, orthographicMatrix, perspectiveMatrix, projectionMatrix;
 		enum TYPE { PERSPECTIVE, ORTHOGRAPHIC };
 		TYPE type;
-
+		enum GIMBLELOCK { ON, OFF };
+		GIMBLELOCK state;
 		float lastX, lastY;
-		bool firstMouseMovement;
+		mat4 T;
+		mat4 R;
+		qtrn q;
 	public:	
-		float yaw, pitch;
 		vec3 up, eye, direction;
-		float speed;
+		bool firstMouseMovement;
+	protected:
 	public:
 		Camera();
 		void createAndSetViewMatrix(const vec3& eye, const vec3& center, const vec3& up);
@@ -29,8 +35,8 @@ namespace engine
 		const mat4& getPerspectiveMatrix();
 		const mat4& getProjectionMatrix();
 		void switchProjectionMatrix();
+		void switchGimbleLock();
+		void srollCallBack(float offset);
 		void mouseCallBack(float xpos, float ypos);
-	protected:
-		void getYawPitchFromDirectionVector(const vec3& direction);
 	};
 }

@@ -1,52 +1,54 @@
 #include "Shader.h"
 
-void engine::Shader::createShaderProgram(const std::string& vertexShaderF, const std::string& fragmentShaderF)
+void engine::Shader::createShaderProgram(const std::string& vs_file, const std::string& fs_file)
 {
-	std::string source;
-
-	VertexShaderId = glCreateShader(GL_VERTEX_SHADER);
-	source = loadShader(vertexShaderF);
-	const char* VertexShader = source.c_str();
-	glShaderSource(VertexShaderId, 1, &VertexShader, 0);
-	glCompileShader(VertexShaderId);
-	checkCompilationError(VertexShaderId);
-
-	FragmentShaderId = glCreateShader(GL_FRAGMENT_SHADER);
-	source = loadShader(fragmentShaderF);
-	const char* FragmentShader = source.c_str();
-	glShaderSource(FragmentShaderId, 1, &FragmentShader, 0);
-	glCompileShader(FragmentShaderId);
-	checkCompilationError(FragmentShaderId);
-
 	ProgramId = glCreateProgram();
-	glAttachShader(ProgramId, VertexShaderId);
-	glAttachShader(ProgramId, FragmentShaderId);
 
-	glBindAttribLocation(ProgramId, VERTICES, "in_Position");
-	glBindAttribLocation(ProgramId, COLORS, "in_Color");
+	GLuint VertexShaderId = loadShader(ProgramId, GL_VERTEX_SHADER, vs_file);
+	GLuint FragmentShaderId = loadShader(ProgramId, GL_FRAGMENT_SHADER, fs_file);
+
+	glBindAttribLocation(ProgramId, VERTICES, "inPosition");
+	if (mesh->TexcoordsLoaded)
+		glBindAttribLocation(ProgramId, TEXCOORDS, "inTexcoord");
+	if (mesh->NormalsLoaded)
+		glBindAttribLocation(ProgramId, NORMALS, "inNormal");
 
 	glLinkProgram(ProgramId);
-	checkLinkageError();
-	MUniformId = glGetUniformLocation(ProgramId, "ModelMatrix");
-	CUniformId = glGetUniformLocation(ProgramId, "u_Color");
-	UboId = glGetUniformBlockIndex(ProgramId, "SharedMatrices");
-	glUniformBlockBinding(ProgramId, UboId, UBO_BP);
+	checkLinkageError(ProgramId);
 
 	glDetachShader(ProgramId, VertexShaderId);
-	glDeleteShader(VertexShaderId);
 	glDetachShader(ProgramId, FragmentShaderId);
+	glDeleteShader(VertexShaderId);
 	glDeleteShader(FragmentShaderId);
+
+	ModelMatrix_UId = glGetUniformLocation(ProgramId, "ModelMatrix");
+	ViewMatrix_UId = glGetUniformLocation(ProgramId, "ViewMatrix");
+	ProjectionMatrix_UId = glGetUniformLocation(ProgramId, "ProjectionMatrix");
+	Color_UId = glGetUniformLocation(ProgramId, "u_Color");
 
 }
 
-std::string engine::Shader::loadShader(const std::string& path)
+const GLuint engine::Shader::loadShader(const GLuint program_id, const GLenum shader_type, const std::string& filename)
 {
-	std::ifstream stream(path);
-	std::string shader="", line;
-	while (std::getline(stream, line)) {
-		shader += line + "\n";
+	const GLuint shader_id = glCreateShader(shader_type);
+	const std::string scode = read(filename);
+	const GLchar* code = scode.c_str();
+	glShaderSource(shader_id, 1, &code, 0);
+	glCompileShader(shader_id);
+	checkCompilationError(shader_id, filename);
+	glAttachShader(program_id, shader_id);
+	return shader_id;
+}
+
+const std::string engine::Shader::read(const std::string& filename)
+{
+	std::ifstream ifile(filename);
+	std::string shader_string, line;
+	while (std::getline(ifile, line))
+	{
+		shader_string += line + "\n";
 	}
-	return shader;
+	return shader_string;
 }
 
 void engine::Shader::destroyShaderProgram()
@@ -55,19 +57,23 @@ void engine::Shader::destroyShaderProgram()
 	glDeleteProgram(ProgramId);
 }
 
-void engine::Shader::checkCompilationError(GLuint shader)
+const GLuint engine::Shader::checkCompilationError(const GLuint shader_id, const std::string& filename)
 {
 	GLint compiled;
-	glGetShaderiv(shader, GL_COMPILE_STATUS, &compiled);
+	glGetShaderiv(shader_id, GL_COMPILE_STATUS, &compiled);
 	if (compiled == GL_FALSE)
 	{
-		char infolog[1024];
-		glGetShaderInfoLog(shader, 1024, NULL, infolog);
-		std::cout << "The vertex shader failed to compile with the error:" << infolog << std::endl;
+		GLint length;
+		glGetShaderiv(shader_id, GL_INFO_LOG_LENGTH, &length);
+		GLchar* const log = new char[length];
+		glGetShaderInfoLog(shader_id, length, &length, log);
+		std::cerr << "[" << filename << "] " << std::endl << log;
+		delete[] log;
 	}
+	return compiled;
 }
 
-void engine::Shader::checkLinkageError()
+void engine::Shader::checkLinkageError(const GLuint program_id)
 {
 	GLint linked;
 	glGetProgramiv(ProgramId, GL_LINK_STATUS, &linked);

@@ -5,12 +5,8 @@
  out vec4 ex_Color;  
 
  uniform mat4 ModelMatrix;  
-
- uniform SharedMatrices  
- {  
- 	mat4 ViewMatrix;  
- 	mat4 ProjectionMatrix;  
- };  
+ uniform mat4 ViewMatrix;
+ uniform mat4 ProjectionMatrix;
 
  void main(void)  
  {  

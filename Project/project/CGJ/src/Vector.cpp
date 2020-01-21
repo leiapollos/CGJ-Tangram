@@ -34,8 +34,8 @@ namespace engine {
 
 		void vec2::clean()
 		{
-			vec2::x = (float)(((int)vec2::x * pow(10, CLEAN_TOLERANCE)) / pow(10, CLEAN_TOLERANCE));
-			vec2::y = (float)(((int)vec2::y * pow(10, CLEAN_TOLERANCE)) / pow(10, CLEAN_TOLERANCE));
+			x = fabs(x) < THRESHOLD ? 0.0f : x;
+			y = fabs(y) < THRESHOLD ? 0.0f : y;
 		}
 
 		const float vec2::quadrance() const
@@ -174,9 +174,9 @@ namespace engine {
 		}
 		void vec3::clean()
 		{
-			vec3::x = (float)((int)(vec3::x * pow(10, CLEAN_TOLERANCE)) / pow(10, CLEAN_TOLERANCE));
-			vec3::y = (float)((int)(vec3::y * pow(10, CLEAN_TOLERANCE)) / pow(10, CLEAN_TOLERANCE));
-			vec3::z = (float)((int)(vec3::z * pow(10, CLEAN_TOLERANCE)) / pow(10, CLEAN_TOLERANCE));
+			x = fabs(x) < THRESHOLD ? 0.0f : x;
+			y = fabs(y) < THRESHOLD ? 0.0f : y;
+			z = fabs(z) < THRESHOLD ? 0.0f : z;
 		}
 		const float vec3::quadrance() const
 		{
@@ -361,10 +361,21 @@ namespace engine {
 
 		void vec4::clean()
 		{
-			vec4::x = (float)(((int)vec4::x * pow(10, CLEAN_TOLERANCE)) / pow(10, CLEAN_TOLERANCE));
-			vec4::y = (float)(((int)vec4::y * pow(10, CLEAN_TOLERANCE)) / pow(10, CLEAN_TOLERANCE));
-			vec4::z = (float)(((int)vec4::z * pow(10, CLEAN_TOLERANCE)) / pow(10, CLEAN_TOLERANCE));
-			vec4::w = (float)(((int)vec4::w * pow(10, CLEAN_TOLERANCE)) / pow(10, CLEAN_TOLERANCE));
+			x = fabs(x) < THRESHOLD ? 0.0f : x;
+			y = fabs(y) < THRESHOLD ? 0.0f : y;
+			z = fabs(z) < THRESHOLD ? 0.0f : z;
+			w = fabs(w) < THRESHOLD ? 0.0f : w;
+		}
+
+		const vec4 normalize(const vec4& v)
+		{
+			vec4 vn;
+			float s = 1 / (v.w * sqrt(v.x * v.x + v.y * v.y + v.z * v.z));
+			vn.x = v.x * s;
+			vn.y = v.y * s;
+			vn.z = v.z * s;
+			vn.w = 1.0f;
+			return vn;
 		}
 
 		const bool operator==(const vec4& v0, const vec4& v1)

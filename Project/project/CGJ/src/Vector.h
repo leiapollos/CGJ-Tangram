@@ -81,6 +81,7 @@ namespace engine
 		vec4(const vec4& v);
 		void getData(float inData[]);
 		void clean();
+		friend const vec4 normalize(const vec4& v);
 		friend const bool operator == (const vec4& v0, const vec4& v1);
 		friend const bool operator != (const vec4& v0, const vec4& v1);
 		friend std::ostream& operator << (std::ostream& os, const vec4& v);
